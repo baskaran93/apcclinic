@@ -22,7 +22,7 @@ connection_string = (
     f"UID={DB_USERNAME};"
     f"PWD={DB_PASSWORD};"
     "Encrypt=yes;"
-    "TrustServerCertificate=no;"
+    "TrustServerCertificate=yes;"
     "Connection Timeout=30;"
 )
 
