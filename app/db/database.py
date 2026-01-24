@@ -30,7 +30,15 @@ connection_string = (
 params = urllib.parse.quote_plus(connection_string)
 DATABASE_URL = f"mssql+pyodbc:///?odbc_connect={params}"
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Create engine with lazy connection (won't connect until first query)
+engine = create_engine(
+    DATABASE_URL, 
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+    pool_recycle=3600,
+    echo=False  # Set to True for SQL debugging
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
