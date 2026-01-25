@@ -7,20 +7,20 @@ from pydantic import BaseModel
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime
 
-BASE = declarative_base()
+from app.db.database import Base
 
 class PatientRegister(BaseModel):
     name: str
     phone_number: str
-    age: int
-    address: str
-    city: str
-    pincode: str
-    mode_of_referral: Optional[str]
+    age: int = 0
+    address: str = ""
+    city: str = ""
+    pincode: str = ""
+    mode_of_referral: Optional[str] = None
 
 
 
-class PatientDetails(BASE):
+class PatientDetails(Base):
     __tablename__ = "patient_details"
     id = Column(String(10), primary_key=True)
     name = Column(String, unique=True, nullable=False)
@@ -46,7 +46,7 @@ class Treatment(BaseModel):
     class Config:
         from_attributes = True
 
-class TreatmentDetails(BASE):
+class TreatmentDetails(Base):
     __tablename__ = "treatment_details"
     id = Column(Integer, primary_key=True, autoincrement=True)
     patient_id = Column(String(10), ForeignKey("patient_details.id"), nullable=False)  # FK to patient_details.id
