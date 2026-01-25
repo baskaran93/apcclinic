@@ -35,13 +35,17 @@ class PatientDetails(Base):
 
 
 
-class Treatment(BaseModel):
-    patient_id : str
-    treatment_date : Optional[datetime] = datetime.utcnow()
-    diagnosis : str
-    treatment_plan : Optional[str] = None
-    doctor_name : Optional[str] = None
-    notes : Optional[str] = None
+class TreatmentItemCreate(BaseModel):
+    treatment_name: str
+    cost: float
+
+class TreatmentCreate(BaseModel):
+    patient_id: str
+    diagnosis: str
+    treatment_plan: Optional[str] = None
+    doctor_name: Optional[str] = None
+    notes: Optional[str] = None
+    items: list[TreatmentItemCreate] = []
 
     class Config:
         from_attributes = True
@@ -55,3 +59,10 @@ class TreatmentDetails(Base):
     treatment_plan = Column(String(1000), nullable=True)
     doctor_name = Column(String(100), nullable=True)
     notes = Column(String(2000), nullable=True)
+
+class TreatmentItem(Base):
+    __tablename__ = "treatment_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("treatment_details.id"), nullable=False)
+    treatment_name = Column(String(500), nullable=False)
+    cost = Column(Float, nullable=False)
