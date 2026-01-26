@@ -29,8 +29,8 @@ def register_user(user_register: UserRegister, db: Session = Depends(get_db)):
 
 @router.post("/user/login/")
 def login_user(user_register: UserRegister, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.username == user_register.username
-                                          and User.password_hash == user_register.password_hash).first()
+    existing_user = db.query(User).filter(User.username == user_register.username,
+                                          User.password_hash == user_register.password_hash).first()
     if not existing_user:
         raise HTTPException(status_code=400, detail="Username, password is incorrect, "
                                                     "please retry or register as a new user")
@@ -39,6 +39,3 @@ def login_user(user_register: UserRegister, db: Session = Depends(get_db)):
         expires_delta=datetime.timedelta(hours=1)
     )
     return {"message": "User Logged in Successfully", "access_token":access_token}
-
-
-

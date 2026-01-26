@@ -1,0 +1,13 @@
+__pycache__
+venv
+bin
+lib
+include
+.git
+.env
+*.log
+*.zip
+webapp_logs
+webapp_logs_fresh
+.idea
+.vscode

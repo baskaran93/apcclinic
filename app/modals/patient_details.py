@@ -5,7 +5,7 @@ from sqlalchemy.sql import func
 from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Float
 
 from app.db.database import Base
 
