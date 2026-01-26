@@ -4,13 +4,13 @@ set -e
 # ---------------------------
 # Configuration
 # ---------------------------
-PROJECT_ID="apcclinic"
+PROJECT_ID="<PROJECT_ID>"
 REGION="asia-south1"
-SERVICE_NAME="apcclinic"
+SERVICE_NAME="<SERVICE_NAME"
 IMAGE="asia-south1-docker.pkg.dev/$PROJECT_ID/apcclinic-repo/apcclinic:latest"
 
 # Environment variables for the app
-ENV_VARS="DB_SERVER=insightexpertz.database.windows.net,DB_NAME=APCDB,DB_USERNAME=<USERNAME,DB_PASSWORD='<PASSWORD>',DB_DRIVER='ODBC Driver 18 for SQL Server',SECRET_KEY='your-secret-key'"
+ENV_VARS="DB_SERVER=<DB>.database.windows.net,DB_NAME=<DB_NAME>,DB_USERNAME=<USER_NAME>,DB_PASSWORD='<DB_PASSWORD>',DB_DRIVER='ODBC Driver 18 for SQL Server',SECRET_KEY='your-secret-key'"
 
 # ---------------------------
 # Authenticate gcloud (optional if already logged in)
