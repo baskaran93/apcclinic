@@ -20,6 +20,14 @@ pyvenv.cfg
 # Azure
 .azure/
 
+# Git
+.git/
+
+# Logs
+*.log
+webapp_logs/
+webapp_logs_fresh/
+
 # Test files
 test_*.py
 test_*.ps1
