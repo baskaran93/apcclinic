@@ -48,10 +48,35 @@ def register_treatment(treatment_register: TreatmentCreate, db: Session = Depend
     
     except Exception as e:
         db.rollback()
-        print(f"[ERROR] Treatment Registration Failed: {str(e)}")
+        error_str = str(e)
+        print(f"[ERROR] Treatment Registration Failed: {error_str}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
+        raise HTTPException(status_code=500, detail=f"Database Error: {error_str}")
+
+@router.get("/treatement/diagnoses/distinct")
+def get_distinct_diagnoses(db: Session = Depends(get_db),
+                         user: dict = Depends(require_auth)):
+    try:
+        results = db.query(TreatmentDetails.diagnosis).distinct().all()
+        # Flatten list of tuples
+        diagnoses = [r[0] for r in results if r[0]]
+        return {"status": "success", "data": diagnoses}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/treatement/physiotherapists/distinct")
+def get_distinct_physiotherapists(db: Session = Depends(get_db),
+                               user: dict = Depends(require_auth)):
+    try:
+        results = db.query(TreatmentDetails.doctor_name).distinct().all()
+        # Flatten list of tuples
+        physiotherapists = [r[0] for r in results if r[0]]
+        return {"status": "success", "data": physiotherapists}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/treatement/history/{patient_id}")
 def get_treatment_history(patient_id: str, db: Session = Depends(get_db),

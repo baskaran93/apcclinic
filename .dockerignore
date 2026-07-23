@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+bin/
+include/
+pyvenv.cfg
+
+# Environment variables
+.env
+
+# IDE
+.idea/
+.vscode/
+
+# Azure
+.azure/
+
+# Test files
+test_*.py
+test_*.ps1
+reproduce_*.py
+
+# Other
+*.zip
+Publish/
+fail*_logs/
+latest_logs/
+manual_logs/
+inspect_table.py
+fix_db_schema.py
+debug_prod_insert.py
+create_tables.py
+update_azure_app.ps1
+fetch_azure_logs.ps1

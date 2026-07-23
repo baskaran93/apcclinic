@@ -5,7 +5,7 @@ from sqlalchemy.sql import func
 from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Float
 
 from app.db.database import Base
 
@@ -23,7 +23,7 @@ class PatientRegister(BaseModel):
 class PatientDetails(Base):
     __tablename__ = "patient_details"
     id = Column(String(10), primary_key=True)
-    name = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
     registeration_date = Column(DateTime, nullable=False)
     phone_number = Column(String, nullable=False)
     age =  Column(Integer, nullable=False)

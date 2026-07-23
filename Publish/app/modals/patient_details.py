@@ -5,25 +5,25 @@ from sqlalchemy.sql import func
 from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Float
 
-BASE = declarative_base()
+from app.db.database import Base
 
 class PatientRegister(BaseModel):
     name: str
     phone_number: str
-    age: int
-    address: str
-    city: str
-    pincode: str
-    mode_of_referral: Optional[str]
+    age: int = 0
+    address: str = ""
+    city: str = ""
+    pincode: str = ""
+    mode_of_referral: Optional[str] = None
 
 
 
-class PatientDetails(BASE):
+class PatientDetails(Base):
     __tablename__ = "patient_details"
     id = Column(String(10), primary_key=True)
-    name = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
     registeration_date = Column(DateTime, nullable=False)
     phone_number = Column(String, nullable=False)
     age =  Column(Integer, nullable=False)
@@ -35,18 +35,22 @@ class PatientDetails(BASE):
 
 
 
-class Treatment(BaseModel):
-    patient_id : str
-    treatment_date : Optional[datetime] = datetime.utcnow()
-    diagnosis : str
-    treatment_plan : Optional[str] = None
-    doctor_name : Optional[str] = None
-    notes : Optional[str] = None
+class TreatmentItemCreate(BaseModel):
+    treatment_name: str
+    cost: float
+
+class TreatmentCreate(BaseModel):
+    patient_id: str
+    diagnosis: str
+    treatment_plan: Optional[str] = None
+    doctor_name: Optional[str] = None
+    notes: Optional[str] = None
+    items: list[TreatmentItemCreate] = []
 
     class Config:
         from_attributes = True
 
-class TreatmentDetails(BASE):
+class TreatmentDetails(Base):
     __tablename__ = "treatment_details"
     id = Column(Integer, primary_key=True, autoincrement=True)
     patient_id = Column(String(10), ForeignKey("patient_details.id"), nullable=False)  # FK to patient_details.id
@@ -55,3 +59,10 @@ class TreatmentDetails(BASE):
     treatment_plan = Column(String(1000), nullable=True)
     doctor_name = Column(String(100), nullable=True)
     notes = Column(String(2000), nullable=True)
+
+class TreatmentItem(Base):
+    __tablename__ = "treatment_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("treatment_details.id"), nullable=False)
+    treatment_name = Column(String(500), nullable=False)
+    cost = Column(Float, nullable=False)

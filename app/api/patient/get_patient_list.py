@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from app.db.database import get_db
 from app.utils.token_generator import require_auth
+from app.modals.patient_details import PatientDetails
 
 router = APIRouter(
     prefix="/patient",
@@ -26,11 +26,21 @@ def get_patient_list(
         print("[INFO] Token received:", credentials.credentials)
         print("[INFO] Authenticated user:", user)
 
-        result = db.execute(text("EXEC GetPatientList"))
+        patients_query = db.query(PatientDetails).order_by(PatientDetails.registeration_date.desc()).all()
 
         patients = []
-        for row in result.mappings():
-            patients.append(dict(row))
+        for p in patients_query:
+            patients.append({
+                "id": p.id,
+                "name": p.name,
+                "phone_number": p.phone_number,
+                "age": p.age,
+                "address": p.address,
+                "city": p.city,
+                "pincode": p.pincode,
+                "mode_of_referral": p.mode_of_referral,
+                "registeration_date": p.registeration_date
+            })
 
         return {
             "status": "success",
@@ -39,8 +49,11 @@ def get_patient_list(
         }
 
     except Exception as e:
-        print(f"[ERROR] {str(e)}")
+        error_str = str(e)
+        print(f"[ERROR] {error_str}")
+        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=error_str
         )

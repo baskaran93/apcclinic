@@ -1,22 +1,45 @@
 import datetime
-from typing import Dict
+from typing import Dict, Optional
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from app.db.database import get_db
 from app.modals.patient_details import PatientRegister, PatientDetails
 from app.utils.token_generator import require_auth
-from fastapi import APIRouter, Depends, Request
+from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, Request, HTTPException
+from pydantic import BaseModel
 
 load_dotenv()
 router = APIRouter()
+
+
+class PatientUpdate(BaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
+    phone_number: Optional[str] = None
+    age: Optional[int] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    pincode: Optional[str] = None
+    mode_of_referral: Optional[str] = None
+
 
 @router.post("/patient/details/register/")
 def register_patient(patient_register: PatientRegister, db: Session = Depends(get_db),
                      user: dict = Depends(require_auth)):
     try:
-        patient_count = db.query(PatientDetails).count() + 1
-        patient_id = f"APC{patient_count:04d}"
+        # Generate a unique patient ID based on the maximum existing ID
+        max_id = db.query(func.max(PatientDetails.id)).scalar()
+        if max_id:
+            try:
+                max_num = int(max_id.replace('APC', ''))
+            except ValueError:
+                max_num = 0
+            new_num = max_num + 1
+        else:
+            new_num = 1
+        patient_id = f"APC{new_num:04d}"
 
         new_patient = PatientDetails(
             id = patient_id,
@@ -33,8 +56,99 @@ def register_patient(patient_register: PatientRegister, db: Session = Depends(ge
         db.commit()
         db.refresh(new_patient)
         return {"message": "Patient registered successfully", "id":new_patient.id}
+    except IntegrityError as e:
+        db.rollback()
+        error_str = str(e)
+        print(f"REGISTRATION INTEGRITY ERROR: {error_str}")
+        if "ix_patient_details_name" in error_str or "UniqueViolation" in error_str or "2601" in error_str:
+            raise HTTPException(status_code=400, detail="A patient with this name already exists.")
+        raise HTTPException(status_code=400, detail="Database integrity error.")
     except Exception as e:
         db.rollback()
-        print(f"REGISTRATION ERROR: {str(e)}")
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail=str(e))
+        error_str = str(e)
+        print(f"REGISTRATION ERROR: {error_str}")
+        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
+        raise HTTPException(status_code=400, detail=error_str)
+
+
+@router.put("/patient/details/update/{patient_id}/")
+def update_patient_path(patient_id: str, patient_update: PatientUpdate, db: Session = Depends(get_db),
+                        user: dict = Depends(require_auth)):
+    """Update patient by path parameter ID. Only provided fields will be updated."""
+    try:
+        patient = db.query(PatientDetails).filter(PatientDetails.id == patient_id).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        # Update only provided fields
+        for field, value in patient_update.dict(exclude_unset=True).items():
+            if field == "id":
+                continue
+            setattr(patient, field, value)
+
+        db.commit()
+        db.refresh(patient)
+        return {"message": "Patient updated successfully", "id": patient.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"UPDATE ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/patient/details/update/")
+def update_patient_body(patient_update: PatientUpdate, db: Session = Depends(get_db),
+                        user: dict = Depends(require_auth)):
+    """Update patient by sending an object containing `id` and the fields to update."""
+    try:
+        if not patient_update.id:
+            raise HTTPException(status_code=400, detail="Patient id is required in the payload")
+
+        patient = db.query(PatientDetails).filter(PatientDetails.id == patient_update.id).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        for field, value in patient_update.dict(exclude_unset=True).items():
+            if field == "id":
+                continue
+            setattr(patient, field, value)
+
+        db.commit()
+        db.refresh(patient)
+        return {"message": "Patient updated successfully", "id": patient.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"UPDATE ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/patient/details/{patient_id}/")
+def update_patient_patch(patient_id: str, patient_update: PatientUpdate, db: Session = Depends(get_db),
+                         user: dict = Depends(require_auth)):
+    """Handle PATCH requests to update partial patient fields at the path the frontend uses."""
+    try:
+        patient = db.query(PatientDetails).filter(PatientDetails.id == patient_id).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        for field, value in patient_update.dict(exclude_unset=True).items():
+            if field == "id":
+                continue
+            setattr(patient, field, value)
+
+        db.commit()
+        db.refresh(patient)
+        return {"message": "Patient updated successfully", "id": patient.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        error_str = str(e)
+        print(f"DATABASE ERROR: {error_str}")
+        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
+        raise HTTPException(status_code=500, detail=error_str)

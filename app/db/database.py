@@ -6,31 +6,40 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Fetch environment variables
-DB_SERVER = os.getenv("DB_SERVER", "insightexpertz.database.windows.net")
-DB_NAME = os.getenv("DB_NAME", "APCDB")
-DB_USERNAME = os.getenv("DB_USERNAME", "saadmin")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "Insight#123#@!")
-DB_DRIVER = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Build connection string
-# Azure SQL usually requires standard connection string format
-connection_string = (
-    f"DRIVER={{{DB_DRIVER}}};"
-    f"SERVER={DB_SERVER},1433;"
-    f"DATABASE={DB_NAME};"
-    f"UID={DB_USERNAME};"
-    f"PWD={DB_PASSWORD};"
-    "Encrypt=yes;"
-    "TrustServerCertificate=yes;"
-    "Connection Timeout=30;"
-)
+if DATABASE_URL:
+    # SQLAlchemy requires postgresql:// instead of postgres://
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    print(f"[DEBUG] Database config loaded: Using DATABASE_URL (PostgreSQL)")
+else:
+    # Fetch environment variables for MSSQL fallback
+    DB_SERVER = os.getenv("DB_SERVER", "BINARY4")
+    DB_NAME = os.getenv("DB_NAME", "APCNew")
+    DB_USERNAME = os.getenv("DB_USERNAME", "sa")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "binary124@")
+    DB_DRIVER = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
 
-# Encode for SQLAlchemy
-params = urllib.parse.quote_plus(connection_string)
-DATABASE_URL = f"mssql+pyodbc:///?odbc_connect={params}"
+    print(f"[DEBUG] Database config loaded: Server={DB_SERVER}, Name={DB_NAME}, User={DB_USERNAME} (MSSQL)")
 
-# Create engine with lazy connection (won't connect until first query)
+    # Build connection string
+    connection_string = (
+        f"DRIVER={{{DB_DRIVER}}};"
+        f"SERVER={DB_SERVER};"
+        f"DATABASE={DB_NAME};"
+        f"UID={DB_USERNAME};"
+        f"PWD={DB_PASSWORD};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=yes;"
+        "Connection Timeout=30;"
+    )
+
+    # Encode for SQLAlchemy
+    params = urllib.parse.quote_plus(connection_string)
+    DATABASE_URL = f"mssql+pyodbc:///?odbc_connect={params}"
+
+# Create engine with lazy connection
 engine = create_engine(
     DATABASE_URL, 
     pool_pre_ping=True,
@@ -48,3 +57,4 @@ def get_db():
         yield db
     finally:
         db.close()
+

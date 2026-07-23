@@ -1,15 +1,13 @@
-from sqlalchemy.orm import declarative_base
+from app.db.database import Base
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, DateTime
-
-BASE = declarative_base()
 
 class UserRegister(BaseModel):
     username: str
     password_hash: str
 
 
-class User(BASE):
+class User(Base):
     __tablename__ = "login"
 
     id = Column(Integer, primary_key=True, index=True)

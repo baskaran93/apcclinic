@@ -7,6 +7,8 @@ from app.api.patient.patient_registration import router as patient_details
 from app.api.patient.treatment_details import router as treatment_details
 from app.api.patient.get_patient_list import router as patient_list
 from app.api.masters.treatment_charges import router as treatment_charges
+from app.api.appointments.appointment import router as appointments
+from app.api.dashboard.summary import router as dashboard_summary
 
 app = FastAPI(
     title="APC Clinic API",
@@ -14,9 +16,20 @@ app = FastAPI(
     version="1.0.0",
 )
 
+@app.on_event("startup")
+def startup_event():
+    print("[INFO] Creating database tables if they do not exist...")
+    from app.modals.users import User
+    from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
+    from app.modals.treatment_charges import TreatmentCharge
+    from app.modals.appointment import Appointment
+    from app.db.database import engine, Base
+    Base.metadata.create_all(bind=engine)
+    print("[INFO] Database tables checked/created successfully.")
+
 @app.get("/")
 def read_root():
-    return {"message": "DoubleManda Backend is running"}
+    return {"message": "Backend is running"}
 
 @app.get("/health")
 def health():
@@ -38,3 +51,5 @@ app.include_router(patient_details)
 app.include_router(treatment_details)
 app.include_router(patient_list)
 app.include_router(treatment_charges)
+app.include_router(appointments)
+app.include_router(dashboard_summary)
