@@ -7,7 +7,7 @@ from app.db.database import get_db
 from app.utils import token_generator
 from app.utils.token_generator import require_auth, require_role
 
-from app.modals.users import User, UserRegister, ChangePassword
+from app.modals.users import User, UserRegister, ChangePassword, UserUpdate
 
 load_dotenv()
 router = APIRouter()
@@ -47,6 +47,35 @@ def list_users(db: Session = Depends(get_db), user: dict = Depends(require_role(
         "status": "success",
         "data": [{"id": u.id, "username": u.username, "role": u.role} for u in users],
     }
+
+
+@router.put("/user/{user_id}/")
+def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db),
+                 user: dict = Depends(require_role("admin"))):
+    try:
+        target = db.query(User).filter(User.id == user_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if payload.role is not None:
+            target.role = payload.role
+        if payload.new_password:
+            target.password_hash = payload.new_password
+            target.password_reset_time = datetime.datetime.utcnow()
+
+        db.commit()
+        db.refresh(target)
+        return {
+            "message": "User updated successfully",
+            "data": {"id": target.id, "username": target.username, "role": target.role},
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        if "SQLDriverConnect" in str(e) or "Cannot open server" in str(e):
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/user/login/")

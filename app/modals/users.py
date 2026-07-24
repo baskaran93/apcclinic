@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.db.database import Base
 from pydantic import BaseModel, field_validator
 from sqlalchemy import Column, Integer, String, DateTime
@@ -21,6 +23,18 @@ class UserRegister(BaseModel):
 class ChangePassword(BaseModel):
     old_password: str
     new_password: str
+
+
+class UserUpdate(BaseModel):
+    role: Optional[str] = None
+    new_password: Optional[str] = None
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value):
+        if value is not None and value not in VALID_ROLES:
+            raise ValueError(f"role must be one of {VALID_ROLES}")
+        return value
 
 
 class User(Base):
