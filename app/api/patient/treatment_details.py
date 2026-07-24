@@ -78,6 +78,36 @@ def get_distinct_physiotherapists(db: Session = Depends(get_db),
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/treatement/history/")
+def get_all_treatment_history(db: Session = Depends(get_db),
+                               user: dict = Depends(require_permission("patient_treatment", "view"))):
+    history = db.query(TreatmentDetails).order_by(desc(TreatmentDetails.treatment_date)).all()
+
+    patient_ids = {h.patient_id for h in history}
+    patients = {
+        p.id: p
+        for p in db.query(PatientDetails).filter(PatientDetails.id.in_(patient_ids)).all()
+    } if patient_ids else {}
+
+    data = []
+    for h in history:
+        items = db.query(TreatmentItem).filter(TreatmentItem.session_id == h.id).all()
+        patient = patients.get(h.patient_id)
+        data.append({
+            "id": h.id,
+            "patient_id": h.patient_id,
+            "patient_name": patient.name if patient else None,
+            "patient_phone": patient.phone_number if patient else None,
+            "treatment_date": h.treatment_date,
+            "diagnosis": h.diagnosis,
+            "doctor_name": h.doctor_name,
+            "notes": h.notes,
+            "items": [{"treatment_name": i.treatment_name, "cost": i.cost} for i in items],
+        })
+
+    return {"status": "success", "count": len(data), "data": data}
+
+
 @router.get("/treatement/history/{patient_id}")
 def get_treatment_history(patient_id: str, db: Session = Depends(get_db),
                          user: dict = Depends(require_permission("patient_treatment", "view"))):
