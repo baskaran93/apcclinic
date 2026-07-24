@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.modals.patient_details import TreatmentCreate, TreatmentDetails, TreatmentItem, PatientDetails
-from app.utils.token_generator import require_role
+from app.utils.permissions import require_permission
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy import desc
 
@@ -15,7 +15,7 @@ router = APIRouter(
 
 @router.post("/treatement/details/register/")
 def register_treatment(treatment_register: TreatmentCreate, db: Session = Depends(get_db),
-                     user: dict = Depends(require_role("admin", "doctor"))):
+                     user: dict = Depends(require_permission("patient_treatment", "add"))):
     try:
         print(f"[DEBUG] Registering treatment for patient: {treatment_register.patient_id}")
         print(f"[DEBUG] Payload: {treatment_register.dict()}")
@@ -41,11 +41,11 @@ def register_treatment(treatment_register: TreatmentCreate, db: Session = Depend
                 cost = item.cost
             )
             db.add(db_item)
-        
+
         db.commit()
         print(f"[DEBUG] {len(treatment_register.items)} child items saved.")
         return {"message": "Treatment registered successfully", "id": treatment.id}
-    
+
     except Exception as e:
         db.rollback()
         error_str = str(e)
@@ -58,7 +58,7 @@ def register_treatment(treatment_register: TreatmentCreate, db: Session = Depend
 
 @router.get("/treatement/diagnoses/distinct")
 def get_distinct_diagnoses(db: Session = Depends(get_db),
-                         user: dict = Depends(require_role("admin", "doctor"))):
+                         user: dict = Depends(require_permission("patient_treatment", "view"))):
     try:
         results = db.query(TreatmentDetails.diagnosis).distinct().all()
         # Flatten list of tuples
@@ -69,7 +69,7 @@ def get_distinct_diagnoses(db: Session = Depends(get_db),
 
 @router.get("/treatement/physiotherapists/distinct")
 def get_distinct_physiotherapists(db: Session = Depends(get_db),
-                               user: dict = Depends(require_role("admin", "doctor"))):
+                               user: dict = Depends(require_permission("patient_treatment", "view"))):
     try:
         results = db.query(TreatmentDetails.doctor_name).distinct().all()
         # Flatten list of tuples
@@ -80,7 +80,7 @@ def get_distinct_physiotherapists(db: Session = Depends(get_db),
 
 @router.get("/treatement/history/{patient_id}")
 def get_treatment_history(patient_id: str, db: Session = Depends(get_db),
-                         user: dict = Depends(require_role("admin", "doctor"))):
+                         user: dict = Depends(require_permission("patient_treatment", "view"))):
     history = db.query(TreatmentDetails).filter(
         TreatmentDetails.patient_id == patient_id
     ).order_by(desc(TreatmentDetails.treatment_date)).all()
@@ -98,5 +98,58 @@ def get_treatment_history(patient_id: str, db: Session = Depends(get_db),
             "items": [{"treatment_name": i.treatment_name, "cost": i.cost} for i in items]
         }
         data.append(h_dict)
-    
+
     return {"status": "success", "data": data}
+
+
+@router.put("/treatement/details/{session_id}/")
+def update_treatment(session_id: int, treatment_update: TreatmentCreate, db: Session = Depends(get_db),
+                      user: dict = Depends(require_permission("patient_treatment", "edit"))):
+    try:
+        treatment = db.query(TreatmentDetails).filter(TreatmentDetails.id == session_id).first()
+        if not treatment:
+            raise HTTPException(status_code=404, detail="Treatment record not found")
+
+        treatment.diagnosis = treatment_update.diagnosis
+        treatment.treatment_plan = treatment_update.treatment_plan
+        treatment.doctor_name = treatment_update.doctor_name
+        treatment.notes = treatment_update.notes
+
+        # Replace items wholesale
+        db.query(TreatmentItem).filter(TreatmentItem.session_id == session_id).delete(synchronize_session=False)
+        for item in treatment_update.items:
+            db.add(TreatmentItem(session_id=session_id, treatment_name=item.treatment_name, cost=item.cost))
+
+        db.commit()
+        db.refresh(treatment)
+        return {"message": "Treatment updated successfully", "id": treatment.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        error_str = str(e)
+        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
+        raise HTTPException(status_code=500, detail=f"Database Error: {error_str}")
+
+
+@router.delete("/treatement/details/{session_id}/")
+def delete_treatment(session_id: int, db: Session = Depends(get_db),
+                      user: dict = Depends(require_permission("patient_treatment", "delete"))):
+    try:
+        treatment = db.query(TreatmentDetails).filter(TreatmentDetails.id == session_id).first()
+        if not treatment:
+            raise HTTPException(status_code=404, detail="Treatment record not found")
+
+        db.query(TreatmentItem).filter(TreatmentItem.session_id == session_id).delete(synchronize_session=False)
+        db.delete(treatment)
+        db.commit()
+        return {"message": "Treatment deleted successfully", "id": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        error_str = str(e)
+        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
+        raise HTTPException(status_code=500, detail=error_str)

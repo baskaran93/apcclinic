@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.utils.token_generator import require_auth
+from app.utils.permissions import require_permission
 from app.modals.patient_details import PatientDetails
 
 router = APIRouter(
@@ -20,7 +20,7 @@ security = HTTPBearer()
 def get_patient_list(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Security(security),
-    user: dict = Depends(require_auth),
+    user: dict = Depends(require_permission("patients", "view")),
 ):
     try:
         print("[INFO] Token received:", credentials.credentials)

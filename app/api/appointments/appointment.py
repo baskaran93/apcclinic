@@ -7,7 +7,7 @@ from sqlalchemy import func
 from app.db.database import get_db
 from app.modals.appointment import Appointment, AppointmentCreate, AppointmentUpdate
 from app.modals.patient_details import PatientDetails
-from app.utils.token_generator import require_auth
+from app.utils.permissions import require_permission
 
 router = APIRouter(
     prefix="/appointments",
@@ -33,7 +33,7 @@ def _serialize(appt: Appointment, patient: Optional[PatientDetails] = None):
 def book_appointment(
     payload: AppointmentCreate,
     db: Session = Depends(get_db),
-    user: dict = Depends(require_auth),
+    user: dict = Depends(require_permission("appointments", "add")),
 ):
     try:
         patient = db.query(PatientDetails).filter(PatientDetails.id == payload.patient_id).first()
@@ -67,7 +67,7 @@ def list_appointments(
     date: Optional[str] = Query(None, description="Filter by date YYYY-MM-DD"),
     status: Optional[str] = Query(None, description="Filter by status"),
     db: Session = Depends(get_db),
-    user: dict = Depends(require_auth),
+    user: dict = Depends(require_permission("appointments", "view")),
 ):
     try:
         query = db.query(Appointment)
@@ -107,7 +107,7 @@ def update_appointment(
     appointment_id: int,
     payload: AppointmentUpdate,
     db: Session = Depends(get_db),
-    user: dict = Depends(require_auth),
+    user: dict = Depends(require_permission("appointments", "edit")),
 ):
     try:
         appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
@@ -142,7 +142,7 @@ def update_appointment(
 def cancel_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
-    user: dict = Depends(require_auth),
+    user: dict = Depends(require_permission("appointments", "delete")),
 ):
     try:
         appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()

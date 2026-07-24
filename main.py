@@ -9,6 +9,7 @@ from app.api.patient.get_patient_list import router as patient_list
 from app.api.masters.treatment_charges import router as treatment_charges
 from app.api.appointments.appointment import router as appointments
 from app.api.dashboard.summary import router as dashboard_summary
+from app.api.permissions.role_permissions import router as role_permissions
 
 app = FastAPI(
     title="APC Clinic API",
@@ -23,6 +24,7 @@ def startup_event():
     from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
     from app.modals.treatment_charges import TreatmentCharge
     from app.modals.appointment import Appointment
+    from app.modals.role_permission import RolePermission
     from app.db.database import engine, Base
     Base.metadata.create_all(bind=engine)
     print("[INFO] Database tables checked/created successfully.")
@@ -53,3 +55,4 @@ app.include_router(patient_list)
 app.include_router(treatment_charges)
 app.include_router(appointments)
 app.include_router(dashboard_summary)
+app.include_router(role_permissions)

@@ -40,6 +40,15 @@ def register_user(user_register: UserRegister, db: Session = Depends(get_db),
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/user/list/")
+def list_users(db: Session = Depends(get_db), user: dict = Depends(require_role("admin"))):
+    users = db.query(User).order_by(User.id).all()
+    return {
+        "status": "success",
+        "data": [{"id": u.id, "username": u.username, "role": u.role} for u in users],
+    }
+
+
 @router.post("/user/login/")
 def login_user(user_register: UserRegister, db: Session = Depends(get_db)):
     try:
