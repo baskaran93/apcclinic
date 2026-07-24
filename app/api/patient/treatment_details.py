@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.modals.patient_details import TreatmentCreate, TreatmentDetails, TreatmentItem, PatientDetails
-from app.utils.token_generator import require_auth
+from app.utils.token_generator import require_role
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy import desc
 
@@ -15,7 +15,7 @@ router = APIRouter(
 
 @router.post("/treatement/details/register/")
 def register_treatment(treatment_register: TreatmentCreate, db: Session = Depends(get_db),
-                     user: dict = Depends(require_auth)):
+                     user: dict = Depends(require_role("admin", "doctor"))):
     try:
         print(f"[DEBUG] Registering treatment for patient: {treatment_register.patient_id}")
         print(f"[DEBUG] Payload: {treatment_register.dict()}")
@@ -58,7 +58,7 @@ def register_treatment(treatment_register: TreatmentCreate, db: Session = Depend
 
 @router.get("/treatement/diagnoses/distinct")
 def get_distinct_diagnoses(db: Session = Depends(get_db),
-                         user: dict = Depends(require_auth)):
+                         user: dict = Depends(require_role("admin", "doctor"))):
     try:
         results = db.query(TreatmentDetails.diagnosis).distinct().all()
         # Flatten list of tuples
@@ -69,7 +69,7 @@ def get_distinct_diagnoses(db: Session = Depends(get_db),
 
 @router.get("/treatement/physiotherapists/distinct")
 def get_distinct_physiotherapists(db: Session = Depends(get_db),
-                               user: dict = Depends(require_auth)):
+                               user: dict = Depends(require_role("admin", "doctor"))):
     try:
         results = db.query(TreatmentDetails.doctor_name).distinct().all()
         # Flatten list of tuples
@@ -80,7 +80,7 @@ def get_distinct_physiotherapists(db: Session = Depends(get_db),
 
 @router.get("/treatement/history/{patient_id}")
 def get_treatment_history(patient_id: str, db: Session = Depends(get_db),
-                         user: dict = Depends(require_auth)):
+                         user: dict = Depends(require_role("admin", "doctor"))):
     history = db.query(TreatmentDetails).filter(
         TreatmentDetails.patient_id == patient_id
     ).order_by(desc(TreatmentDetails.treatment_date)).all()

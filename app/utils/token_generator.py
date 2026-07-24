@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 from dotenv import load_dotenv
 from pathlib import Path
 import os
@@ -60,3 +60,14 @@ def require_auth(request: Request):
     Wrapper for protected routes that extracts and validates JWT token.
     """
     return get_token_from_header(request)
+
+def require_role(*allowed_roles):
+    """
+    Dependency factory for routes restricted to specific roles.
+    Usage: user: dict = Depends(require_role("admin", "doctor"))
+    """
+    def checker(user: dict = Depends(require_auth)):
+        if user.get("role") not in allowed_roles:
+            raise HTTPException(status_code=403, detail="You do not have permission to perform this action")
+        return user
+    return checker

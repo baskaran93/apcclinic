@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.modals.treatment_charges import TreatmentCharge, TreatmentChargeCreate
+from app.utils.token_generator import require_auth, require_role
 from typing import List
 
 router = APIRouter()
 
 @router.post("/masters/treatment_charges/", response_model=dict)
-def create_treatment_charge(charge: TreatmentChargeCreate, db: Session = Depends(get_db)):
+def create_treatment_charge(charge: TreatmentChargeCreate, db: Session = Depends(get_db),
+                             user: dict = Depends(require_role("admin"))):
     try:
         db_charge = TreatmentCharge(
             treatment_name=charge.treatment_name,
@@ -32,7 +34,7 @@ def create_treatment_charge(charge: TreatmentChargeCreate, db: Session = Depends
         raise HTTPException(status_code=500, detail=error_str)
 
 @router.get("/masters/treatment_charges/", response_model=List[dict])
-def get_treatment_charges(db: Session = Depends(get_db)):
+def get_treatment_charges(db: Session = Depends(get_db), user: dict = Depends(require_auth)):
     try:
         charges = db.query(TreatmentCharge).all()
         return [
