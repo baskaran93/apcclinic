@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.utils import token_generator
+from app.utils.token_generator import require_auth
 
-from app.modals.users import User, UserRegister
+from app.modals.users import User, UserRegister, ChangePassword
 
 load_dotenv()
 router = APIRouter()
@@ -47,6 +48,28 @@ def login_user(user_register: UserRegister, db: Session = Depends(get_db)):
             expires_delta=datetime.timedelta(hours=1)
         )
         return {"message": "User Logged in Successfully", "access_token":access_token}
+    except HTTPException:
+        raise
+    except Exception as e:
+        if "SQLDriverConnect" in str(e) or "Cannot open server" in str(e):
+             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/user/change-password/")
+def change_password(payload: ChangePassword, db: Session = Depends(get_db),
+                     user: dict = Depends(require_auth)):
+    try:
+        existing_user = db.query(User).filter(User.id == user.get("user_id")).first()
+        if not existing_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if existing_user.password_hash != payload.old_password:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        existing_user.password_hash = payload.new_password
+        existing_user.password_reset_time = datetime.datetime.utcnow()
+        db.commit()
+        return {"message": "Password changed successfully"}
     except HTTPException:
         raise
     except Exception as e:

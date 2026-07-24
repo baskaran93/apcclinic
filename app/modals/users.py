@@ -7,6 +7,11 @@ class UserRegister(BaseModel):
     password_hash: str
 
 
+class ChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+
 class User(Base):
     __tablename__ = "login"
 
