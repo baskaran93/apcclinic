@@ -21,15 +21,20 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     print("[INFO] Creating database tables if they do not exist...")
-    from app.modals.users import User
-    from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
-    from app.modals.treatment_charges import TreatmentCharge
-    from app.modals.designation import Designation
-    from app.modals.appointment import Appointment
-    from app.modals.role_permission import RolePermission
-    from app.db.database import engine, Base
-    Base.metadata.create_all(bind=engine)
-    print("[INFO] Database tables checked/created successfully.")
+    try:
+        from app.modals.users import User
+        from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
+        from app.modals.treatment_charges import TreatmentCharge
+        from app.modals.designation import Designation
+        from app.modals.appointment import Appointment
+        from app.modals.role_permission import RolePermission
+        from app.db.database import engine, Base
+        Base.metadata.create_all(bind=engine)
+        print("[INFO] Database tables checked/created successfully.")
+    except Exception as e:
+        print(f"[ERROR] Failed to create tables: {e}")
+        import traceback
+        traceback.print_exc()
 
 @app.get("/")
 def read_root():
