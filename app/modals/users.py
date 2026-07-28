@@ -11,6 +11,7 @@ class UserRegister(BaseModel):
     username: str
     password_hash: str
     role: str = "receptionist"
+    designation_id: Optional[int] = None
 
     @field_validator("role")
     @classmethod
@@ -28,6 +29,7 @@ class ChangePassword(BaseModel):
 class UserUpdate(BaseModel):
     role: Optional[str] = None
     new_password: Optional[str] = None
+    designation_id: Optional[int] = None
 
     @field_validator("role")
     @classmethod
@@ -45,3 +47,4 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     password_reset_time = Column(DateTime, nullable=True)
     role = Column(String, nullable=False, server_default="receptionist")
+    designation_id = Column(Integer, nullable=True)

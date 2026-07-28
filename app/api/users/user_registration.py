@@ -8,6 +8,7 @@ from app.utils import token_generator
 from app.utils.token_generator import require_auth, require_role
 
 from app.modals.users import User, UserRegister, ChangePassword, UserUpdate
+from app.modals.designation import Designation
 
 load_dotenv()
 router = APIRouter()
@@ -26,7 +27,8 @@ def register_user(user_register: UserRegister, db: Session = Depends(get_db),
             username = user_register.username,
             password_hash = user_register.password_hash,
             password_reset_time = datetime.datetime.utcnow(),
-            role = user_register.role
+            role = user_register.role,
+            designation_id = user_register.designation_id
         )
         db.add(new_user)
         db.commit()
@@ -43,9 +45,19 @@ def register_user(user_register: UserRegister, db: Session = Depends(get_db),
 @router.get("/user/list/")
 def list_users(db: Session = Depends(get_db), user: dict = Depends(require_role("admin"))):
     users = db.query(User).order_by(User.id).all()
+    designations = {d.id: d.designation_name for d in db.query(Designation).all()}
     return {
         "status": "success",
-        "data": [{"id": u.id, "username": u.username, "role": u.role} for u in users],
+        "data": [
+            {
+                "id": u.id,
+                "username": u.username,
+                "role": u.role,
+                "designation_id": u.designation_id,
+                "designation_name": designations.get(u.designation_id),
+            }
+            for u in users
+        ],
     }
 
 
@@ -59,6 +71,10 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
 
         if payload.role is not None:
             target.role = payload.role
+        # Use model_fields_set (not `is not None`) so an explicit null clears
+        # the designation, while omitting the field entirely leaves it as-is.
+        if "designation_id" in payload.model_fields_set:
+            target.designation_id = payload.designation_id
         if payload.new_password:
             target.password_hash = payload.new_password
             target.password_reset_time = datetime.datetime.utcnow()
@@ -67,7 +83,12 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
         db.refresh(target)
         return {
             "message": "User updated successfully",
-            "data": {"id": target.id, "username": target.username, "role": target.role},
+            "data": {
+                "id": target.id,
+                "username": target.username,
+                "role": target.role,
+                "designation_id": target.designation_id,
+            },
         }
     except HTTPException:
         raise
