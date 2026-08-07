@@ -14,12 +14,25 @@ if DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     print(f"[DEBUG] Database config loaded: Using DATABASE_URL (PostgreSQL)")
 else:
-    # Fetch environment variables for MSSQL fallback
-    DB_SERVER = os.getenv("DB_SERVER", "BINARY4")
-    DB_NAME = os.getenv("DB_NAME", "APCNew")
-    DB_USERNAME = os.getenv("DB_USERNAME", "sa")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "binary124@")
+    # Fetch environment variables for MSSQL fallback (local/legacy dev only).
+    # No hardcoded credential defaults: if these aren't set, fail loudly
+    # instead of silently connecting to a hardcoded server/credential.
+    DB_SERVER = os.getenv("DB_SERVER")
+    DB_NAME = os.getenv("DB_NAME")
+    DB_USERNAME = os.getenv("DB_USERNAME")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
     DB_DRIVER = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
+
+    missing = [name for name, value in (
+        ("DB_SERVER", DB_SERVER), ("DB_NAME", DB_NAME),
+        ("DB_USERNAME", DB_USERNAME), ("DB_PASSWORD", DB_PASSWORD),
+    ) if not value]
+    if missing:
+        raise RuntimeError(
+            "No DATABASE_URL is set, and the MSSQL fallback is missing required "
+            f"environment variable(s): {', '.join(missing)}. Set DATABASE_URL "
+            "(Postgres) or all of DB_SERVER/DB_NAME/DB_USERNAME/DB_PASSWORD."
+        )
 
     print(f"[DEBUG] Database config loaded: Server={DB_SERVER}, Name={DB_NAME}, User={DB_USERNAME} (MSSQL)")
 

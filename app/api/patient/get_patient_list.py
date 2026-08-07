@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.utils.permissions import require_permission
+from app.utils.error_handling import raise_db_error
 from app.modals.patient_details import PatientDetails
 
 router = APIRouter(
@@ -23,9 +24,6 @@ def get_patient_list(
     user: dict = Depends(require_permission("patients", "view")),
 ):
     try:
-        print("[INFO] Token received:", credentials.credentials)
-        print("[INFO] Authenticated user:", user)
-
         patients_query = db.query(PatientDetails).order_by(PatientDetails.registeration_date.desc()).all()
 
         patients = []
@@ -34,6 +32,7 @@ def get_patient_list(
                 "id": p.id,
                 "name": p.name,
                 "phone_number": p.phone_number,
+                "alternative_number": p.alternative_number,
                 "age": p.age,
                 "address": p.address,
                 "city": p.city,
@@ -49,11 +48,4 @@ def get_patient_list(
         }
 
     except Exception as e:
-        error_str = str(e)
-        print(f"[ERROR] {error_str}")
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(
-            status_code=500,
-            detail=error_str
-        )
+        raise_db_error(e)

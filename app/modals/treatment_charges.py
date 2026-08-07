@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float
 from app.db.database import Base
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 class TreatmentCharge(Base):
@@ -12,5 +12,5 @@ class TreatmentCharge(Base):
 
 class TreatmentChargeCreate(BaseModel):
     treatment_name: str
-    cost: float
+    cost: float = Field(ge=0)
     description: Optional[str] = None

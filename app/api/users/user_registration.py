@@ -9,6 +9,8 @@ from app.utils.token_generator import require_auth, require_role
 
 from app.modals.users import User, UserRegister, ChangePassword, UserUpdate
 from app.modals.designation import Designation
+from app.utils.password_hashing import hash_password, is_hashed, verify_password
+from app.utils.error_handling import raise_db_error
 
 load_dotenv()
 router = APIRouter()
@@ -23,9 +25,13 @@ def register_user(user_register: UserRegister, db: Session = Depends(get_db),
         existing_user = db.query(User).filter(User.username == user_register.username).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="User already exists for this username")
+        if user_register.designation_id is not None:
+            designation = db.query(Designation).filter(Designation.id == user_register.designation_id).first()
+            if not designation:
+                raise HTTPException(status_code=400, detail="Invalid designation_id")
         new_user = User(
             username = user_register.username,
-            password_hash = user_register.password_hash,
+            password_hash = hash_password(user_register.password_hash),
             password_reset_time = datetime.datetime.utcnow(),
             role = user_register.role,
             designation_id = user_register.designation_id
@@ -37,9 +43,8 @@ def register_user(user_register: UserRegister, db: Session = Depends(get_db),
     except HTTPException:
         raise
     except Exception as e:
-        if "SQLDriverConnect" in str(e) or "Cannot open server" in str(e):
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        raise_db_error(e)
 
 
 @router.get("/user/list/")
@@ -74,9 +79,13 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
         # Use model_fields_set (not `is not None`) so an explicit null clears
         # the designation, while omitting the field entirely leaves it as-is.
         if "designation_id" in payload.model_fields_set:
+            if payload.designation_id is not None:
+                designation = db.query(Designation).filter(Designation.id == payload.designation_id).first()
+                if not designation:
+                    raise HTTPException(status_code=400, detail="Invalid designation_id")
             target.designation_id = payload.designation_id
         if payload.new_password:
-            target.password_hash = payload.new_password
+            target.password_hash = hash_password(payload.new_password)
             target.password_reset_time = datetime.datetime.utcnow()
 
         db.commit()
@@ -94,21 +103,24 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
         raise
     except Exception as e:
         db.rollback()
-        if "SQLDriverConnect" in str(e) or "Cannot open server" in str(e):
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise_db_error(e)
 
 
 @router.post("/user/login/")
 def login_user(user_register: UserRegister, db: Session = Depends(get_db)):
     try:
-        existing_user = db.query(User).filter(
-            User.username == user_register.username,
-            User.password_hash == user_register.password_hash
-        ).first()
-        if not existing_user:
+        existing_user = db.query(User).filter(User.username == user_register.username).first()
+        if not existing_user or not verify_password(user_register.password_hash, existing_user.password_hash):
             raise HTTPException(status_code=400, detail="Username, password is incorrect, "
                                                         "please retry or register as a new user")
+
+        # Legacy rows predate hashing and still hold the raw password; a
+        # successful legacy match is the only time we have the plaintext in
+        # hand, so migrate the row to a bcrypt hash right here.
+        if not is_hashed(existing_user.password_hash):
+            existing_user.password_hash = hash_password(user_register.password_hash)
+            db.commit()
+
         access_token = token_generator.create_access_token(
             data={"sub": existing_user.username, "user_id": existing_user.id, "role": existing_user.role},
             expires_delta=datetime.timedelta(hours=1)
@@ -121,9 +133,8 @@ def login_user(user_register: UserRegister, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        if "SQLDriverConnect" in str(e) or "Cannot open server" in str(e):
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        raise_db_error(e)
 
 
 @router.post("/user/change-password/")
@@ -133,16 +144,15 @@ def change_password(payload: ChangePassword, db: Session = Depends(get_db),
         existing_user = db.query(User).filter(User.id == user.get("user_id")).first()
         if not existing_user:
             raise HTTPException(status_code=404, detail="User not found")
-        if existing_user.password_hash != payload.old_password:
+        if not verify_password(payload.old_password, existing_user.password_hash):
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-        existing_user.password_hash = payload.new_password
+        existing_user.password_hash = hash_password(payload.new_password)
         existing_user.password_reset_time = datetime.datetime.utcnow()
         db.commit()
         return {"message": "Password changed successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        if "SQLDriverConnect" in str(e) or "Cannot open server" in str(e):
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        raise_db_error(e)

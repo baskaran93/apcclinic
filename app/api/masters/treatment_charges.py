@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.modals.treatment_charges import TreatmentCharge, TreatmentChargeCreate
 from app.utils.permissions import require_permission
+from app.utils.error_handling import raise_db_error
 from typing import List
 
 router = APIRouter()
@@ -28,10 +29,7 @@ def create_treatment_charge(charge: TreatmentChargeCreate, db: Session = Depends
         }
     except Exception as e:
         db.rollback()
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)
 
 @router.get("/masters/treatment_charges/", response_model=List[dict])
 def get_treatment_charges(db: Session = Depends(get_db), user: dict = Depends(require_permission("treatment_charges", "view"))):
@@ -47,10 +45,7 @@ def get_treatment_charges(db: Session = Depends(get_db), user: dict = Depends(re
             for charge in charges
         ]
     except Exception as e:
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)
 
 
 @router.put("/masters/treatment_charges/{charge_id}/", response_model=dict)
@@ -78,10 +73,7 @@ def update_treatment_charge(charge_id: int, charge: TreatmentChargeCreate, db: S
         raise
     except Exception as e:
         db.rollback()
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)
 
 
 @router.delete("/masters/treatment_charges/{charge_id}/", response_model=dict)
@@ -99,7 +91,4 @@ def delete_treatment_charge(charge_id: int, db: Session = Depends(get_db),
         raise
     except Exception as e:
         db.rollback()
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)

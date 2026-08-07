@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.modals.designation import Designation, DesignationCreate
 from app.utils.token_generator import require_role
+from app.utils.error_handling import raise_db_error
 from typing import List
 
 router = APIRouter()
@@ -26,10 +27,7 @@ def create_designation(designation: DesignationCreate, db: Session = Depends(get
         }
     except Exception as e:
         db.rollback()
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)
 
 @router.get("/masters/designations/", response_model=List[dict])
 def get_designations(db: Session = Depends(get_db), user: dict = Depends(require_role("admin"))):
@@ -44,10 +42,7 @@ def get_designations(db: Session = Depends(get_db), user: dict = Depends(require
             for d in designations
         ]
     except Exception as e:
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)
 
 
 @router.put("/masters/designations/{designation_id}/", response_model=dict)
@@ -73,10 +68,7 @@ def update_designation(designation_id: int, designation: DesignationCreate, db: 
         raise
     except Exception as e:
         db.rollback()
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)
 
 
 @router.delete("/masters/designations/{designation_id}/", response_model=dict)
@@ -94,7 +86,4 @@ def delete_designation(designation_id: int, db: Session = Depends(get_db),
         raise
     except Exception as e:
         db.rollback()
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-             raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)

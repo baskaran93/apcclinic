@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
 from app.modals.appointment import Appointment
 from app.utils.token_generator import require_auth
+from app.utils.error_handling import raise_db_error
 
 router = APIRouter(
     prefix="/dashboard",
@@ -58,7 +59,4 @@ def get_dashboard_summary(
             },
         }
     except Exception as e:
-        error_str = str(e)
-        if "SQLDriverConnect" in error_str or "Cannot open server" in error_str:
-            raise HTTPException(status_code=503, detail="Database connection failed. Please check firewall settings.")
-        raise HTTPException(status_code=500, detail=error_str)
+        raise_db_error(e)

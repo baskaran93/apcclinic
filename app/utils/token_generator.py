@@ -14,9 +14,9 @@ print("[INFO] Trying to load:", env_path)
 print("[INFO] Exists:", env_path.exists())
 
 load_dotenv(dotenv_path=env_path)
-print("[INFO] SECRET_KEY from env:", os.getenv("SECRET_KEY"))
 # Get the SECRET_KEY from environment
 SECRET_KEY = os.getenv("SECRET_KEY")
+print("[INFO] SECRET_KEY loaded:", "yes" if SECRET_KEY else "no")
 ALGORITHM = "HS256"
 
 # Raise error if key not set

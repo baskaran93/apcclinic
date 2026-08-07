@@ -3,16 +3,17 @@ from typing import Optional
 from sqlalchemy import ForeignKey
 from sqlalchemy.sql import func
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String, DateTime, Float
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text
 
 from app.db.database import Base
 
 class PatientRegister(BaseModel):
     name: str
     phone_number: str
-    age: int = 0
+    alternative_number: Optional[str] = None
+    age: int = Field(default=0, ge=0, le=150)
     address: str = ""
     city: str = ""
     pincode: str = ""
@@ -26,6 +27,7 @@ class PatientDetails(Base):
     name = Column(String, nullable=False)
     registeration_date = Column(DateTime, nullable=False)
     phone_number = Column(String, nullable=False)
+    alternative_number = Column(String, nullable=True)
     age =  Column(Integer, nullable=False)
     address = Column(String, nullable=False)
     city = Column(String, nullable=False)
@@ -37,7 +39,7 @@ class PatientDetails(Base):
 
 class TreatmentItemCreate(BaseModel):
     treatment_name: str
-    cost: float
+    cost: float = Field(ge=0)
 
 class TreatmentCreate(BaseModel):
     patient_id: str
@@ -46,6 +48,8 @@ class TreatmentCreate(BaseModel):
     doctor_name: Optional[str] = None
     notes: Optional[str] = None
     items: list[TreatmentItemCreate] = []
+    assessment_file_name: Optional[str] = None
+    assessment_file_base64: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -59,6 +63,8 @@ class TreatmentDetails(Base):
     treatment_plan = Column(String(1000), nullable=True)
     doctor_name = Column(String(100), nullable=True)
     notes = Column(String(2000), nullable=True)
+    assessment_file_name = Column(String(255), nullable=True)
+    assessment_file_base64 = Column(Text, nullable=True)
 
 class TreatmentItem(Base):
     __tablename__ = "treatment_items"

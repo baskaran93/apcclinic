@@ -8,6 +8,7 @@ from app.api.patient.treatment_details import router as treatment_details
 from app.api.patient.get_patient_list import router as patient_list
 from app.api.masters.treatment_charges import router as treatment_charges
 from app.api.masters.designation import router as designation_master
+from app.api.masters.referral_type import router as referral_type_master
 from app.api.appointments.appointment import router as appointments
 from app.api.dashboard.summary import router as dashboard_summary
 from app.api.permissions.role_permissions import router as role_permissions
@@ -26,11 +27,16 @@ def startup_event():
         from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
         from app.modals.treatment_charges import TreatmentCharge
         from app.modals.designation import Designation
+        from app.modals.referral_type import ReferralType
         from app.modals.appointment import Appointment
         from app.modals.role_permission import RolePermission
         from app.db.database import engine, Base
         Base.metadata.create_all(bind=engine)
         print("[INFO] Database tables checked/created successfully.")
+
+        from app.db.migrations import run_startup_migrations
+        run_startup_migrations()
+        print("[INFO] Startup migrations checked/applied successfully.")
     except Exception as e:
         print(f"[ERROR] Failed to create tables: {e}")
         import traceback
@@ -44,11 +50,13 @@ def read_root():
 def health():
     return {"status": "ok"}
 
-# CORS
+# CORS: auth is Bearer-token based (no cookies), so credentials aren't
+# needed here. allow_credentials=True combined with a wildcard origin is
+# invalid per the CORS spec and was never actually required.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -61,6 +69,7 @@ app.include_router(treatment_details)
 app.include_router(patient_list)
 app.include_router(treatment_charges)
 app.include_router(designation_master)
+app.include_router(referral_type_master)
 app.include_router(appointments)
 app.include_router(dashboard_summary)
 app.include_router(role_permissions)
