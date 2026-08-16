@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
 from app.modals.appointment import Appointment
 from app.modals.office_expense import OfficeExpense
+from app.modals.enquiry import Enquiry
 from app.utils.token_generator import require_auth
 from app.utils.error_handling import raise_db_error
 
@@ -92,6 +93,12 @@ def get_dashboard_summary(
         profit_margin = (profit_loss / income_period * 100) if income_period > 0 else 0.0
         profit_loss_status = "profit" if profit_loss > 0 else ("loss" if profit_loss < 0 else "breakeven")
 
+        walkins_period = (
+            db.query(func.count(Enquiry.id))
+            .filter(func.date(Enquiry.enquiry_date).between(start_date, end_date))
+            .scalar()
+        ) or 0
+
         return {
             "status": "success",
             "data": {
@@ -110,6 +117,7 @@ def get_dashboard_summary(
                 "profit_loss": profit_loss,
                 "profit_margin": round(profit_margin, 1),
                 "profit_loss_status": profit_loss_status,
+                "walkins_period": int(walkins_period),
             },
         }
     except Exception as e:
