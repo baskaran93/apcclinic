@@ -1,6 +1,6 @@
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 
 from app.db.database import Base
@@ -9,10 +9,17 @@ VALID_APPOINTMENT_STATUSES = ("Scheduled", "Completed", "Cancelled")
 
 
 class AppointmentCreate(BaseModel):
-    patient_id: str
+    patient_id: Optional[str] = None
+    enquiry_id: Optional[str] = None
     appointment_date: datetime
     doctor_name: Optional[str] = None
     notes: Optional[str] = None
+
+    @model_validator(mode="after")
+    def check_patient_or_enquiry(self):
+        if bool(self.patient_id) == bool(self.enquiry_id):
+            raise ValueError("Provide exactly one of patient_id or enquiry_id")
+        return self
 
 
 class AppointmentUpdate(BaseModel):
@@ -32,7 +39,8 @@ class AppointmentUpdate(BaseModel):
 class Appointment(Base):
     __tablename__ = "appointments"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    patient_id = Column(String(10), ForeignKey("patient_details.id"), nullable=False)
+    patient_id = Column(String(10), ForeignKey("patient_details.id"), nullable=True)
+    enquiry_id = Column(String(10), ForeignKey("enquiries.id"), nullable=True)
     appointment_date = Column(DateTime, nullable=False)
     doctor_name = Column(String(100), nullable=True)
     notes = Column(String(1000), nullable=True)

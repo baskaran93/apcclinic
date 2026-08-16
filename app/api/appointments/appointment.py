@@ -7,6 +7,7 @@ from sqlalchemy import func
 from app.db.database import get_db
 from app.modals.appointment import Appointment, AppointmentCreate, AppointmentUpdate
 from app.modals.patient_details import PatientDetails
+from app.modals.enquiry import Enquiry
 from app.utils.permissions import require_permission
 from app.utils.error_handling import raise_db_error
 
@@ -16,12 +17,15 @@ router = APIRouter(
 )
 
 
-def _serialize(appt: Appointment, patient: Optional[PatientDetails] = None):
+def _serialize(appt: Appointment, patient: Optional[PatientDetails] = None, enquiry: Optional[Enquiry] = None):
+    is_enquiry = appt.enquiry_id is not None
     return {
         "id": appt.id,
         "patient_id": appt.patient_id,
-        "patient_name": patient.name if patient else None,
-        "patient_phone": patient.phone_number if patient else None,
+        "patient_name": patient.name if patient else (enquiry.name if enquiry else None),
+        "patient_phone": patient.phone_number if patient else (enquiry.phone_number if enquiry else None),
+        "enquiry_id": appt.enquiry_id,
+        "is_enquiry": is_enquiry,
         "appointment_date": appt.appointment_date,
         "doctor_name": appt.doctor_name,
         "notes": appt.notes,
@@ -37,12 +41,21 @@ def book_appointment(
     user: dict = Depends(require_permission("appointments", "add")),
 ):
     try:
-        patient = db.query(PatientDetails).filter(PatientDetails.id == payload.patient_id).first()
-        if not patient:
-            raise HTTPException(status_code=404, detail="Patient not found")
+        patient = None
+        enquiry = None
+
+        if payload.patient_id:
+            patient = db.query(PatientDetails).filter(PatientDetails.id == payload.patient_id).first()
+            if not patient:
+                raise HTTPException(status_code=404, detail="Patient not found")
+        else:
+            enquiry = db.query(Enquiry).filter(Enquiry.id == payload.enquiry_id).first()
+            if not enquiry:
+                raise HTTPException(status_code=404, detail="Enquiry not found")
 
         appt = Appointment(
             patient_id=payload.patient_id,
+            enquiry_id=payload.enquiry_id,
             appointment_date=payload.appointment_date,
             doctor_name=payload.doctor_name,
             notes=payload.notes,
@@ -52,7 +65,7 @@ def book_appointment(
         db.add(appt)
         db.commit()
         db.refresh(appt)
-        return {"status": "success", "message": "Appointment booked successfully", "data": _serialize(appt, patient)}
+        return {"status": "success", "message": "Appointment booked successfully", "data": _serialize(appt, patient, enquiry)}
     except HTTPException:
         raise
     except Exception as e:
@@ -82,13 +95,22 @@ def list_appointments(
 
         appointments = query.order_by(Appointment.appointment_date.asc()).all()
 
-        patient_ids = {a.patient_id for a in appointments}
+        patient_ids = {a.patient_id for a in appointments if a.patient_id}
         patients = {
             p.id: p
             for p in db.query(PatientDetails).filter(PatientDetails.id.in_(patient_ids)).all()
         } if patient_ids else {}
 
-        data = [_serialize(a, patients.get(a.patient_id)) for a in appointments]
+        enquiry_ids = {a.enquiry_id for a in appointments if a.enquiry_id}
+        enquiries = {
+            e.id: e
+            for e in db.query(Enquiry).filter(Enquiry.id.in_(enquiry_ids)).all()
+        } if enquiry_ids else {}
+
+        data = [
+            _serialize(a, patients.get(a.patient_id), enquiries.get(a.enquiry_id))
+            for a in appointments
+        ]
 
         return {"status": "success", "count": len(data), "data": data}
     except HTTPException:
@@ -121,8 +143,9 @@ def update_appointment(
         db.commit()
         db.refresh(appt)
 
-        patient = db.query(PatientDetails).filter(PatientDetails.id == appt.patient_id).first()
-        return {"status": "success", "message": "Appointment updated successfully", "data": _serialize(appt, patient)}
+        patient = db.query(PatientDetails).filter(PatientDetails.id == appt.patient_id).first() if appt.patient_id else None
+        enquiry = db.query(Enquiry).filter(Enquiry.id == appt.enquiry_id).first() if appt.enquiry_id else None
+        return {"status": "success", "message": "Appointment updated successfully", "data": _serialize(appt, patient, enquiry)}
     except HTTPException:
         raise
     except Exception as e:

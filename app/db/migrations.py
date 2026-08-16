@@ -42,6 +42,11 @@ def run_startup_migrations():
             print("[MIGRATE] Adding 'alternative_number' column to patient_details table")
             conn.execute(text("ALTER TABLE patient_details ADD COLUMN alternative_number VARCHAR(15);"))
 
+        if not _column_exists(conn, "appointments", "enquiry_id"):
+            print("[MIGRATE] Adding 'enquiry_id' column to appointments table and relaxing patient_id")
+            conn.execute(text("ALTER TABLE appointments ADD COLUMN enquiry_id VARCHAR(10);"))
+            conn.execute(text("ALTER TABLE appointments ALTER COLUMN patient_id DROP NOT NULL;"))
+
         _seed_referral_types_from_patients(conn)
 
 

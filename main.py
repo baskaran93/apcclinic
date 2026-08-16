@@ -12,6 +12,7 @@ from app.api.masters.referral_type import router as referral_type_master
 from app.api.masters.expense_type import router as expense_type_master
 from app.api.expenses.office_expense import router as office_expenses
 from app.api.appointments.appointment import router as appointments
+from app.api.enquiry.enquiry import router as enquiry
 from app.api.dashboard.summary import router as dashboard_summary
 from app.api.permissions.role_permissions import router as role_permissions
 
@@ -33,6 +34,7 @@ def startup_event():
         from app.modals.expense_type import ExpenseType
         from app.modals.office_expense import OfficeExpense
         from app.modals.appointment import Appointment
+        from app.modals.enquiry import Enquiry
         from app.modals.role_permission import RolePermission
         from app.db.database import engine, Base
         Base.metadata.create_all(bind=engine)
@@ -77,5 +79,6 @@ app.include_router(referral_type_master)
 app.include_router(expense_type_master)
 app.include_router(office_expenses)
 app.include_router(appointments)
+app.include_router(enquiry)
 app.include_router(dashboard_summary)
 app.include_router(role_permissions)
