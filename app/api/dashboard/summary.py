@@ -1,13 +1,12 @@
 import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, exists
 
 from app.db.database import get_db
 from app.modals.patient_details import PatientDetails, TreatmentDetails, TreatmentItem
 from app.modals.appointment import Appointment
 from app.modals.office_expense import OfficeExpense
-from app.modals.enquiry import Enquiry
 from app.utils.token_generator import require_auth
 from app.utils.error_handling import raise_db_error
 
@@ -93,9 +92,20 @@ def get_dashboard_summary(
         profit_margin = (profit_loss / income_period * 100) if income_period > 0 else 0.0
         profit_loss_status = "profit" if profit_loss > 0 else ("loss" if profit_loss < 0 else "breakeven")
 
+        # Walk-in = a treatment given with no matching appointment booked for
+        # that patient on that same day (i.e. they were seen without booking
+        # ahead), rather than a scheduled/confirmed visit.
+        had_appointment_that_day = (
+            exists()
+            .where(Appointment.patient_id == TreatmentDetails.patient_id)
+            .where(func.date(Appointment.appointment_date) == func.date(TreatmentDetails.treatment_date))
+            .where(Appointment.status != "Cancelled")
+        )
+
         walkins_period = (
-            db.query(func.count(Enquiry.id))
-            .filter(func.date(Enquiry.enquiry_date).between(start_date, end_date))
+            db.query(func.count(TreatmentDetails.id))
+            .filter(func.date(TreatmentDetails.treatment_date).between(start_date, end_date))
+            .filter(~had_appointment_that_day)
             .scalar()
         ) or 0
 
