@@ -75,7 +75,9 @@ def book_appointment(
 
 @router.get("/list/")
 def list_appointments(
-    date: Optional[str] = Query(None, description="Filter by date YYYY-MM-DD"),
+    date: Optional[str] = Query(None, description="Filter by exact date YYYY-MM-DD"),
+    before_date: Optional[str] = Query(None, description="Only appointments strictly before this date YYYY-MM-DD"),
+    after_date: Optional[str] = Query(None, description="Only appointments on or after this date YYYY-MM-DD"),
     status: Optional[str] = Query(None, description="Filter by status"),
     db: Session = Depends(get_db),
     user: dict = Depends(require_permission("appointments", "view")),
@@ -89,6 +91,20 @@ def list_appointments(
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid date format, expected YYYY-MM-DD")
             query = query.filter(func.date(Appointment.appointment_date) == day)
+
+        if before_date:
+            try:
+                before = datetime.datetime.strptime(before_date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid before_date format, expected YYYY-MM-DD")
+            query = query.filter(func.date(Appointment.appointment_date) < before)
+
+        if after_date:
+            try:
+                after = datetime.datetime.strptime(after_date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid after_date format, expected YYYY-MM-DD")
+            query = query.filter(func.date(Appointment.appointment_date) >= after)
 
         if status:
             query = query.filter(Appointment.status == status)
