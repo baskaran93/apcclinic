@@ -1,4 +1,5 @@
 import datetime
+import mimetypes
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -132,6 +133,26 @@ def get_treatment_history(patient_id: str, db: Session = Depends(get_db),
         data.append(h_dict)
 
     return {"status": "success", "data": data}
+
+
+@router.get("/treatement/details/{session_id}/assessment-file/")
+def get_assessment_file(session_id: int, db: Session = Depends(get_db),
+                         user: dict = Depends(require_permission("patient_treatment", "view"))):
+    treatment = db.query(TreatmentDetails).filter(TreatmentDetails.id == session_id).first()
+    if not treatment:
+        raise HTTPException(status_code=404, detail="Treatment record not found")
+    if not treatment.assessment_file_base64:
+        raise HTTPException(status_code=404, detail="No assessment file attached to this record")
+
+    content_type, _ = mimetypes.guess_type(treatment.assessment_file_name or "")
+    return {
+        "status": "success",
+        "data": {
+            "filename": treatment.assessment_file_name or f"assessment_{session_id}",
+            "content_type": content_type or "application/octet-stream",
+            "content_base64": treatment.assessment_file_base64,
+        },
+    }
 
 
 @router.put("/treatement/details/{session_id}/")
